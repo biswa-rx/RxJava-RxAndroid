@@ -1,9 +1,12 @@
 package com.example.rxjava_rxandroid;
 
+import android.os.Handler;
 import android.util.Log;
 
 import com.example.rxjava_rxandroid.utils.DataSource;
 import com.example.rxjava_rxandroid.utils.Task;
+
+import java.util.concurrent.TimeUnit;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Observable;
@@ -235,5 +238,89 @@ public class CreateOperator {
 
                     }
                 });
+    }
+
+    public static void intervalOperator() {
+//        A pretty common problem we Android programmers run into is 'running a method' or 'executing some kind of process' at a specific time interval or delay.
+//        final Handler handler = new Handler();
+//        final Runnable runnable = new Runnable() {
+//
+//            int elapsedTime = 0;
+//
+//            @Override
+//            public void run() {
+//                if(elapsedTime >= 5){ // if greater than 5 seconds
+//                    handler.removeCallbacks(this);
+//                }
+//                else{
+//                    elapsedTime = elapsedTime + 1;
+//                    handler.postDelayed(this, 1000);
+//                    Log.d(TAG, "run: " + elapsedTime);
+//                }
+//            }
+//        };
+//        handler.postDelayed(runnable, 1000);
+
+
+        // emit an observable every time interval
+        Observable<Long> intervalObservable = Observable
+                .interval(1, TimeUnit.SECONDS)
+                .subscribeOn(Schedulers.io())
+                .takeWhile(new Predicate<Long>() { // stop the process if more than 5 seconds passes
+                    @Override
+                    public boolean test(Long aLong) throws Exception {
+                        return aLong <= 5;
+                    }
+                })
+                .observeOn(AndroidSchedulers.mainThread());
+
+
+        intervalObservable.subscribe(new Observer<Long>() {
+            @Override
+            public void onSubscribe(Disposable d) {
+            }
+            @Override
+            public void onNext(Long aLong) {
+                Log.d(TAG, "onNext: interval: " + aLong);
+            }
+            @Override
+            public void onError(Throwable e) {
+
+            }
+            @Override
+            public void onComplete() {
+
+            }
+        });
+    }
+
+    public static void timerOperator() {
+        // emit single observable after a given delay
+        Observable<Long> timeObservable = Observable
+                .timer(3, TimeUnit.SECONDS)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread());
+
+        timeObservable.subscribe(new Observer<Long>() {
+
+            long time = 0; // variable for demonstrating how much time has passed
+
+            @Override
+            public void onSubscribe(Disposable d) {
+                time = System.currentTimeMillis() / 1000;
+            }
+            @Override
+            public void onNext(Long aLong) {
+                Log.d(TAG, "onNext: " + ((System.currentTimeMillis() / 1000) - time) + " seconds have elapsed." );
+            }
+            @Override
+            public void onError(Throwable e) {
+
+            }
+            @Override
+            public void onComplete() {
+
+            }
+        });
     }
 }

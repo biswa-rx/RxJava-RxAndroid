@@ -5,6 +5,7 @@ import static com.example.rxjava_rxandroid.CreateOperator.createOperatorSingleOb
 import static com.example.rxjava_rxandroid.CreateOperator.justOperator;
 import static com.example.rxjava_rxandroid.CreateOperator.rangeOperator;
 import static com.example.rxjava_rxandroid.CreateOperator.rangeOperatorUsingMap;
+import static com.example.rxjava_rxandroid.CreateOperator.timerOperator;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -49,7 +50,9 @@ public class MainActivity extends AppCompatActivity {
 
 //        rangeOperator();
 
-        rangeOperatorUsingMap();
+//        rangeOperatorUsingMap();
+
+        timerOperator();
     }
 
     @Override
