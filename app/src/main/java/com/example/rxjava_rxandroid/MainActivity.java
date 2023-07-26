@@ -1,5 +1,11 @@
 package com.example.rxjava_rxandroid;
 
+import static com.example.rxjava_rxandroid.CreateOperator.createOperatorListOfObject;
+import static com.example.rxjava_rxandroid.CreateOperator.createOperatorSingleObject;
+import static com.example.rxjava_rxandroid.CreateOperator.justOperator;
+import static com.example.rxjava_rxandroid.CreateOperator.rangeOperator;
+import static com.example.rxjava_rxandroid.CreateOperator.rangeOperatorUsingMap;
+
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
@@ -25,7 +31,7 @@ public class MainActivity extends AppCompatActivity {
     //ui
     TextView textView;
     //vars
-    private CompositeDisposable disposables = new CompositeDisposable();
+    private final CompositeDisposable disposables = new CompositeDisposable();
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -33,7 +39,27 @@ public class MainActivity extends AppCompatActivity {
 
         textView = findViewById(R.id.textView);
 
+//        initialLecture();
 
+//        createOperatorSingleObject();
+
+//        createOperatorListOfObject();
+
+//        justOperator();
+
+//        rangeOperator();
+
+        rangeOperatorUsingMap();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        disposables.clear();
+//        disposables.dispose();
+    }
+
+    private void initialLecture(){
         Observable<Task> taskObservable = Observable // create a new Observable object
                 .fromIterable(DataSource.createTasksList()) // apply 'fromIterable' operator
                 .subscribeOn(Schedulers.io()) // designate worker thread (background)
@@ -75,13 +101,5 @@ public class MainActivity extends AppCompatActivity {
 
             }
         }));
-
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        disposables.clear();
-//        disposables.dispose();
     }
 }
