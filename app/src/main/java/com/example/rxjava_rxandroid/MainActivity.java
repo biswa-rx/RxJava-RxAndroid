@@ -13,14 +13,19 @@ import com.example.rxjava_rxandroid.utils.Task;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Observer;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.disposables.Disposable;
+import io.reactivex.rxjava3.functions.Consumer;
 import io.reactivex.rxjava3.functions.Predicate;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "biswa_rx";
+    //ui
     TextView textView;
+    //vars
+    private CompositeDisposable disposables = new CompositeDisposable();
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -46,7 +51,8 @@ public class MainActivity extends AppCompatActivity {
         taskObservable.subscribe(new Observer<Task>() {
             @Override
             public void onSubscribe(Disposable d) {
-                Log.d(TAG, "onSubscribe: ");
+                Log.d(TAG, "onSubscribe: called");
+                disposables.add(d);
             }
             @Override
             public void onNext(Task task) { // run on main thread
@@ -63,5 +69,19 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        disposables.add(taskObservable.subscribe(new Consumer<Task>() {
+            @Override
+            public void accept(Task task) throws Throwable {
+
+            }
+        }));
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        disposables.clear();
+//        disposables.dispose();
     }
 }
