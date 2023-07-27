@@ -64,8 +64,9 @@ public class MainActivity extends AppCompatActivity {
 
 //        bufferOperatorTrackingUIInteractions();
 
-        debounceOperatorRestrictServerRequests();
+//        debounceOperatorRestrictServerRequests();
 
+        throttleFirstOperatorRestrictButtonSpamming();
     }
 
     @Override
@@ -206,6 +207,31 @@ public class MainActivity extends AppCompatActivity {
             public void onComplete() {
             }
         });
+    }
+
+    private void throttleFirstOperatorRestrictButtonSpamming() {
+        // Set a click listener to the button with RxBinding Library
+        RxView.clicks(findViewById(R.id.button))
+                .throttleFirst(500, TimeUnit.MILLISECONDS) // Throttle the clicks so 500 ms must pass before registering a new click
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe(new io.reactivex.Observer<Unit>() {
+                    @Override
+                    public void onSubscribe(io.reactivex.disposables.Disposable d) {
+                        disposable2.add(d);
+                    }
+                    @Override
+                    public void onNext(Unit unit) {
+                        Log.d(TAG, "onNext: time since last clicked: " + (System.currentTimeMillis() - timeSinceLastRequest));
+                        timeSinceLastRequest = System.currentTimeMillis();
+                        sendRequestToServer("Some Request"); // Execute some method when a click is registered
+                    }
+                    @Override
+                    public void onError(Throwable e) {
+                    }
+                    @Override
+                    public void onComplete() {
+                    }
+                });
     }
 
     // Fake method for sending a request to the server
