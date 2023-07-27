@@ -5,6 +5,8 @@ import android.util.Log;
 import com.example.rxjava_rxandroid.utils.DataSource;
 import com.example.rxjava_rxandroid.utils.Task;
 
+import java.util.List;
+
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Observer;
@@ -64,6 +66,36 @@ public class TransformationOperator {
             public void onComplete() {
             }
         });
+    }
+
+    public static void bufferOperator(){
+        // Create an Observable
+        Observable<Task> taskObservable = Observable
+                .fromIterable(DataSource.createTasksList())
+                .subscribeOn(Schedulers.io());
+
+        taskObservable
+                .buffer(2) // Apply the Buffer() operator
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Observer<List<Task>>() { // Subscribe and view the emitted results
+                    @Override
+                    public void onSubscribe(Disposable d) {
+                    }
+                    @Override
+                    public void onNext(List<Task> tasks) {
+                        Log.d(TAG, "onNext: bundle results: -------------------");
+                        for(Task task: tasks){
+                            Log.d(TAG, "onNext: " + task.getDescription());
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                    }
+                    @Override
+                    public void onComplete() {
+                    }
+                });
     }
 
 
