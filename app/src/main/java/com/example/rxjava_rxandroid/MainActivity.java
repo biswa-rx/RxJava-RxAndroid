@@ -4,35 +4,46 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import android.os.Bundle;
-import android.util.Log;
-
-import com.example.rxjava_rxandroid.models.Comment;
-import com.example.rxjava_rxandroid.models.Post;
-import com.example.rxjava_rxandroid.requests.ServiceGenerator;
-
-import java.util.List;
-import java.util.Random;
-
 import io.reactivex.Observable;
+
 import io.reactivex.ObservableSource;
 import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 import io.reactivex.schedulers.Schedulers;
+import io.reactivex.subjects.PublishSubject;
 
-public class MainActivity extends AppCompatActivity {
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.os.Parcelable;
+import android.util.Log;
+import android.widget.ProgressBar;
+
+import com.example.rxjava_rxandroid.models.Post;
+import com.example.rxjava_rxandroid.requests.ServiceGenerator;
+
+
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+
+public class MainActivity extends AppCompatActivity implements RecyclerAdapter.OnPostClickListener {
 
     private static final String TAG = "MainActivity";
 
     //ui
     private RecyclerView recyclerView;
+    private ProgressBar progressBar;
 
     // vars
     private CompositeDisposable disposables = new CompositeDisposable();
     private RecyclerAdapter adapter;
+    private PublishSubject<Post> publishSubject = PublishSubject.create(); // for selecting a post
+    private static final int PERIOD = 100;
 
 
     @Override
@@ -40,18 +51,52 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         recyclerView = findViewById(R.id.recycler_view);
+        progressBar = findViewById(R.id.progress_bar);
 
         initRecyclerView();
+        retrievePosts();
+    }
 
-        getPostsObservable()
-                .subscribeOn(Schedulers.io())
-                .concatMap(new Function<Post, ObservableSource<Post>>() {
+    private void initSwitchMapDemo(){
+        publishSubject
+
+                // apply switchmap operator so only one Observable can be used at a time.
+                // it clears the previous one
+                .switchMap(new Function<Post, ObservableSource<Post>>() {
                     @Override
-                    public ObservableSource<Post> apply(Post post) throws Exception {
-                        return getCommentsObservable(post);
+                    public ObservableSource<Post> apply(final Post post) throws Exception {
+                        return Observable
+
+                                // simulate slow network speed with interval + takeWhile + filter operators
+                                .interval(PERIOD, TimeUnit.MILLISECONDS)
+                                .subscribeOn(AndroidSchedulers.mainThread())
+                                .takeWhile(new Predicate<Long>() { // stop the process if more than 5 seconds passes
+                                    @Override
+                                    public boolean test(Long aLong) throws Exception {
+                                        Log.d(TAG, "test: " + Thread.currentThread().getName() + ", " + aLong);
+                                        progressBar.setMax(3000 - PERIOD);
+                                        progressBar.setProgress(Integer.parseInt(String.valueOf((aLong * PERIOD) + PERIOD)));
+                                        return aLong <= (3000 / PERIOD);
+                                    }
+                                })
+                                .filter(new Predicate<Long>() {
+                                    @Override
+                                    public boolean test(Long aLong) throws Exception {
+                                        return aLong >= (3000 / PERIOD);
+                                    }
+                                })
+
+                                // flatmap to convert Long from the interval operator into a Observable<Post>
+                                .subscribeOn(Schedulers.io())
+                                .flatMap(new Function<Long, ObservableSource<Post>>() {
+                                    @Override
+                                    public ObservableSource<Post> apply(Long aLong) throws Exception {
+                                        return ServiceGenerator.getRequestApi()
+                                                .getPost(post.getId());
+                                    }
+                                });
                     }
                 })
-                .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new Observer<Post>() {
                     @Override
                     public void onSubscribe(Disposable d) {
@@ -60,7 +105,9 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onNext(Post post) {
-                        updatePost(post);
+                        Log.d(TAG, "onNext: done.");
+                        Log.d(TAG, "onNext: llllllllllll");
+                        navViewPostActivity(post);
                     }
 
                     @Override
@@ -70,57 +117,72 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onComplete() {
+
                     }
                 });
     }
 
-    private Observable<Post> getPostsObservable(){
-        return ServiceGenerator.getRequestApi()
+    private void retrievePosts(){
+        ServiceGenerator.getRequestApi()
                 .getPosts()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .flatMap(new Function<List<Post>, ObservableSource<Post>>() {
+                .subscribe(new Observer<List<Post>>() {
                     @Override
-                    public ObservableSource<Post> apply(final List<Post> posts) throws Exception {
+                    public void onSubscribe(Disposable d) {
+                        disposables.add(d);
+                    }
+
+                    @Override
+                    public void onNext(List<Post> posts) {
                         adapter.setPosts(posts);
-                        return Observable.fromIterable(posts)
-                                .subscribeOn(Schedulers.io());
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        Log.e(TAG, "onError: ", e);
+                    }
+
+                    @Override
+                    public void onComplete() {
+
                     }
                 });
     }
 
-    private void updatePost(Post post){
-        adapter.updatePost(post);
-    }
-
-    private Observable<Post> getCommentsObservable(final Post post){
-        return ServiceGenerator.getRequestApi()
-                .getComments(post.getId())
-                .map(new Function<List<Comment>, Post>() {
-                    @Override
-                    public Post apply(List<Comment> comments) throws Exception {
-
-                        int delay = ((new Random()).nextInt(5) + 1) * 1000; // sleep thread for x ms
-                        Thread.sleep(delay);
-                        Log.d(TAG, "apply: sleeping thread " + Thread.currentThread().getName() + " for " + String.valueOf(delay)+ "ms");
-
-                        post.setComments(comments);
-                        return post;
-                    }
-                })
-                .subscribeOn(Schedulers.io());
-
+    @Override
+    protected void onResume() {
+        super.onResume();
+        progressBar.setProgress(0);
+        initSwitchMapDemo();
     }
 
     private void initRecyclerView(){
-        adapter = new RecyclerAdapter();
+        adapter = new RecyclerAdapter(this);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
     }
 
+    private void navViewPostActivity(Post post){
+        Intent intent = new Intent(this, ViewPostActivity.class);
+        intent.putExtra("post",post);
+        startActivity(intent);
+    }
+
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
+    protected void onPause() {
+        Log.d(TAG, "onPause: called.");
         disposables.clear();
+        super.onPause();
+    }
+
+    @Override
+    public void onPostClick(final int position) {
+
+        Log.d(TAG, "onPostClick: clicked.");
+
+        // submit the selected post object to be queried
+        publishSubject.onNext(adapter.getPosts().get(position));
     }
 }
+
